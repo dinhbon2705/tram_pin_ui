@@ -3,7 +3,6 @@
 // =====================================================
 
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-
 const DATA_TOPIC = "bondowdata";
 const CONTROL_TOPIC = "bonupdata";
 
