@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Trạm mượn pin thông minh - Giám sát</title>
+
+    <!-- MQTT.js -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+
+        /* ================= TOPBAR ================= */
+
+        .topbar {
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            color: white;
+            padding: 22px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+        }
+
+        .topbar h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .topbar p {
+            font-size: 14px;
+            opacity: 0.85;
+        }
+
+        .mqtt-badge {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            padding: 11px 18px;
+            border-radius: 999px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* ================= CONTAINER ================= */
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        /* ================= PANEL ================= */
+
+        .panel {
+            background: white;
+            border-radius: 18px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.07);
+            border: 1px solid #e5e7eb;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 22px;
+        }
+
+        .panel-title h2 {
+            font-size: 20px;
+            color: #111827;
+        }
+
+        .small-note {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        /* ================= CONNECTION ================= */
+
+        .topic-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .topic-grid label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #4b5563;
+        }
+
+        .topic-grid input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .viewer-mode {
+            margin-top: 18px;
+            padding: 12px 16px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* ================= SUMMARY ================= */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .summary-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        .summary-card span {
+            display: block;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .summary-card strong {
+            font-size: 30px;
+            color: #111827;
+        }
+
+        .summary-card.available strong {
+            color: #16a34a;
+        }
+
+        .summary-card.borrowed strong {
+            color: #ea580c;
+        }
+
+        /* ================= SLOT ================= */
+
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .slot {
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 22px;
+            background: #ffffff;
+            transition: 0.25s ease;
+        }
+
+        .slot:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        }
+
+        .slot-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .slot-head b {
+            font-size: 16px;
+            color: #111827;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #9ca3af;
+            display: inline-block;
+        }
+
+        .battery-icon {
+            text-align: center;
+            font-size: 55px;
+            margin: 15px 0;
+        }
+
+        .slot-status {
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #f3f4f6;
+            color: #374151;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .battery-bar {
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            margin-top: 18px;
+            overflow: hidden;
+        }
+
+        .battery-bar div {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+
+        .battery-value {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .slot p {
+            margin-top: 14px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .slot p span {
+            color: #111827;
+            font-weight: bold;
+            word-break: break-all;
+        }
+
+        /* ================= BOTTOM ================= */
+
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 25px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 14px 0;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row span {
+            color: #6b7280;
+        }
+
+        .info-row b {
+            color: #111827;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        /* ================= ALERT ================= */
+
+        .alert {
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .alert.normal {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        /* ================= FOOTER INFO ================= */
+
+        .readonly-label {
+            margin-top: 15px;
+            display: inline-block;
+            padding: 7px 12px;
+            background: #f3f4f6;
+            border-radius: 999px;
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* ================= RESPONSIVE ================= */
+
+        @media (max-width: 1100px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .slot-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 800px) {
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .topic-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .bottom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 550px) {
+            .container {
+                padding: 15px;
+            }
+
+            .topbar {
+                padding: 18px;
+            }
+
+            .topbar h1 {
+                font-size: 21px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .slot-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <h1>🔋 TRẠM MƯỢN PIN THÔNG MINH</h1>
+
+        <p>
+            Hệ thống giám sát pin sử dụng ESP32-C5 & MQTT
+        </p>
+    </div>
+
+    <div class="mqtt-badge" id="status">
+        ● Đang kết nối MQTT...
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <!-- ================= MQTT ================= -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <h2>📡 Kết nối hệ thống</h2>
+
+            <span id="subStatus">
+                Đang kết nối...
+            </span>
+
+        </div>
+
+
+        <div class="topic-grid">
+
+            <div>
+
+                <label>
+                    Topic nhận dữ liệu
+                </label>
+
+                <input
+                    type="text"
+                    value="bondowdata"
+                    readonly
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>
+                    Chế độ truy cập
+                </label>
+
+                <input
+                    type="text"
+                    value="CHỈ GIÁM SÁT"
+                    readonly
+                >
+
+            </div>
+
+        </div>
+
+
+        <div class="viewer-mode">
+
+            👁️ Đây là chế độ xem.
+            Người dùng không có quyền điều khiển trạm.
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= THỐNG KÊ ================= -->
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+
+            <span>
+                📦 Tổng số ngăn
+            </span>
+
+            <strong id="totalSlots">
+                4
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card available">
+
+            <span>
+                🟢 Pin sẵn sàng
+            </span>
+
+            <strong id="availableCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card borrowed">
+
+            <span>
+                🟠 Đang được mượn
+            </span>
+
+            <strong id="borrowedCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <span>
+                👤 Người dùng
+            </span>
+
+            <strong id="currentUser">
+                --
+            </strong>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= CÁC NGĂN ================= -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <h2>
+                🔋 Trạng thái các ngăn pin
+            </h2>
+
+            <span class="small-note">
+                Cập nhật tự động
+            </span>
+
+        </div>
+
+
+        <div class="slot-grid">
+
+            <!-- ================= NGĂN 01 ================= -->
+
+            <div class="slot" id="slot1">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 01</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+                <div
+                    class="slot-status"
+                    id="slot1Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+                <div class="battery-bar">
+
+                    <div id="slot1Bar"></div>
+
+                </div>
+
+                <div class="battery-value">
+
+                    <span id="slot1Battery">
+                        --
+                    </span>%
+
+                </div>
+
+                <p>
+                    Người mượn:
+                    <span id="slot1User">--</span>
+                </p>
+
+            </div>
+
+
+            <!-- ================= NGĂN 02 ================= -->
+
+            <div class="slot" id="slot2">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 02</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+                <div
+                    class="slot-status"
+                    id="slot2Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+                <div class="battery-bar">
+
+                    <div id="slot2Bar"></div>
+
+                </div>
+
+                <div class="battery-value">
+
+                    <span id="slot2Battery">
+                        --
+                    </span>%
+
+                </div>
+
+                <p>
+                    Người mượn:
+                    <span id="slot2User">--</span>
+                </p>
+
+            </div>
+
+
+            <!-- ================= NGĂN 03 ================= -->
+
+            <div class="slot" id="slot3">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 03</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+                <div
+                    class="slot-status"
+                    id="slot3Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+                <div class="battery-bar">
+
+                    <div id="slot3Bar"></div>
+
+                </div>
+
+                <div class="battery-value">
+
+                    <span id="slot3Battery">
+                        --
+                    </span>%
+
+                </div>
+
+                <p>
+                    Người mượn:
+                    <span id="slot3User">--</span>
+                </p>
+
+            </div>
+
+
+            <!-- ================= NGĂN 04 ================= -->
+
+            <div class="slot" id="slot4">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 04</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+                <div
+                    class="slot-status"
+                    id="slot4Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+                <div class="battery-bar">
+
+                    <div id="slot4Bar"></div>
+
+                </div>
+
+                <div class="battery-value">
+
+                    <span id="slot4Battery">
+                        --
+                    </span>%
+
+                </div>
+
+                <p>
+                    Người mượn:
+                    <span id="slot4User">--</span>
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= THÔNG TIN ================= -->
+
+    <section class="bottom-grid">
+
+
+        <div class="panel">
+
+            <div class="panel-title">
+
+                <h2>
+                    📊 Thông tin hệ thống
+                </h2>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>
+                    RFID gần nhất
+                </span>
+
+                <b id="rfid">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>
+                    Điện áp pin
+                </span>
+
+                <b>
+                    <span id="voltage">
+                        --
+                    </span>
+                    V
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>
+                    Ngăn đang thao tác
+                </span>
+
+                <b id="activeSlot">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>
+                    Cảm biến cửa
+                </span>
+
+                <b id="door">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>
+                    Thời gian cập nhật
+                </span>
+
+                <b id="lastUpdate">
+                    --
+                </b>
+
+            </div>
+
+
+            <span class="readonly-label">
+                CHẾ ĐỘ CHỈ XEM
+            </span>
+
+        </div>
+
+
+        <!-- ================= CẢNH BÁO ================= -->
+
+        <div class="panel">
+
+            <div class="panel-title">
+
+                <h2>
+                    🚨 Thông báo
+                </h2>
+
+            </div>
+
+
+            <div
+                id="alertBox"
+                class="alert normal">
+
+                Đang chờ dữ liệu từ ESP32...
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script src="viewer.js"></script>
+
+</body>
+</html>

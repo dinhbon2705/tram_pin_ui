@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Trạm mượn pin thông minh</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+
+<body>
+
+<header class="topbar">
+
+    <div>
+        <h1>🔋 TRẠM MƯỢN PIN THÔNG MINH</h1>
+        <p>Hệ thống quản lý pin sử dụng ESP32-C5 & MQTT</p>
+    </div>
+
+    <div class="mqtt-badge" id="status">
+        ● Đang kết nối MQTT...
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <!-- ================= MQTT ================= -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <h2>📡 Kết nối MQTT</h2>
+
+            <span id="subStatus">
+                Chưa subscribe
+            </span>
+
+        </div>
+
+
+        <div class="topic-grid">
+
+            <div>
+
+                <label for="subTopic">
+                    Topic nhận dữ liệu
+                </label>
+
+                <input
+                    type="text"
+                    id="subTopic"
+                    value="bondowdata"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label for="pubTopic">
+                    Topic gửi lệnh
+                </label>
+
+                <input
+                    type="text"
+                    id="pubTopic"
+                    value="bonupdata"
+                >
+
+            </div>
+
+        </div>
+
+
+        <div class="actions">
+
+            <button
+                class="primary"
+                id="btnSubscribe">
+                Subscribe dữ liệu
+            </button>
+
+            <button
+                class="secondary"
+                id="btnUnsubscribe">
+                Unsubscribe
+            </button>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ================= THỐNG KÊ ================= -->
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+
+            <span>📦 Tổng số ngăn</span>
+
+            <strong id="totalSlots">
+                4
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card available">
+
+            <span>🟢 Pin sẵn sàng</span>
+
+            <strong id="availableCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card borrowed">
+
+            <span>🟠 Đang được mượn</span>
+
+            <strong id="borrowedCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <span>👤 Người dùng</span>
+
+            <strong id="currentUser">
+                --
+            </strong>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ================= CÁC NGĂN PIN ================= -->
+
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <h2>
+                🔋 Trạng thái các ngăn pin
+            </h2>
+
+            <span class="small-note">
+                Cập nhật qua MQTT
+            </span>
+
+        </div>
+
+
+        <div class="slot-grid">
+
+
+            <!-- NGĂN 01 -->
+
+            <div class="slot" id="slot1">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 01</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+
+                <div
+                    class="slot-status"
+                    id="slot1Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+
+                <div class="battery-bar">
+
+                    <div id="slot1Bar"></div>
+
+                </div>
+
+
+                <div class="battery-value">
+
+                    <span id="slot1Battery">
+                        --
+                    </span>%
+
+                </div>
+
+
+                <p>
+                    Người mượn:
+                    <span id="slot1User">--</span>
+                </p>
+
+
+                <button
+                    class="borrow"
+                    id="slot1Button"
+                   onclick="toggleMaintenance(1)">
+
+                    Mở ngăn
+
+                </button>
+
+            </div>
+
+
+
+            <!-- NGĂN 02 -->
+
+            <div class="slot" id="slot2">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 02</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+
+                <div
+                    class="slot-status"
+                    id="slot2Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+
+                <div class="battery-bar">
+
+                    <div id="slot2Bar"></div>
+
+                </div>
+
+
+                <div class="battery-value">
+
+                    <span id="slot2Battery">
+                        --
+                    </span>%
+
+                </div>
+
+
+                <p>
+                    Người mượn:
+                    <span id="slot2User">--</span>
+                </p>
+
+
+                <button
+                    class="borrow"
+                    id="slot2Button"
+                    onclick="sendCommand('BORROW',2)">
+
+                    Mở ngăn
+
+                </button>
+
+            </div>
+
+
+
+            <!-- NGĂN 03 -->
+
+            <div class="slot" id="slot3">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 03</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+
+                <div
+                    class="slot-status"
+                    id="slot3Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+
+                <div class="battery-bar">
+
+                    <div id="slot3Bar"></div>
+
+                </div>
+
+
+                <div class="battery-value">
+
+                    <span id="slot3Battery">
+                        --
+                    </span>%
+
+                </div>
+
+
+                <p>
+                    Người mượn:
+                    <span id="slot3User">--</span>
+                </p>
+
+
+                <button
+                    class="borrow"
+                    id="slot3Button"
+                    onclick="sendCommand('BORROW',3)">
+
+                    Mở ngăn
+
+                </button>
+
+            </div>
+
+
+
+            <!-- NGĂN 04 -->
+
+            <div class="slot" id="slot4">
+
+                <div class="slot-head">
+
+                    <b>NGĂN 04</b>
+
+                    <span class="dot"></span>
+
+                </div>
+
+
+                <div class="battery-icon">
+                    🔋
+                </div>
+
+
+                <div
+                    class="slot-status"
+                    id="slot4Status">
+
+                    CHƯA CÓ DỮ LIỆU
+
+                </div>
+
+
+                <div class="battery-bar">
+
+                    <div id="slot4Bar"></div>
+
+                </div>
+
+
+                <div class="battery-value">
+
+                    <span id="slot4Battery">
+                        --
+                    </span>%
+
+                </div>
+
+
+                <p>
+                    Người mượn:
+                    <span id="slot4User">--</span>
+                </p>
+
+
+                <button
+                    class="borrow"
+                    id="slot4Button"
+                    onclick="sendCommand('BORROW',4)">
+
+                    Mở ngăn
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ================= THÔNG TIN ================= -->
+
+    <section class="bottom-grid">
+
+
+        <div class="panel">
+
+            <div class="panel-title">
+
+                <h2>
+                    📊 Thông tin hệ thống
+                </h2>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>RFID gần nhất</span>
+
+                <b id="rfid">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>Điện áp pin</span>
+
+                <b>
+                    <span id="voltage">
+                        --
+                    </span>
+                    V
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>Ngăn đang thao tác</span>
+
+                <b id="activeSlot">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>Cảm biến cửa</span>
+
+                <b id="door">
+                    --
+                </b>
+
+            </div>
+
+
+            <div class="info-row">
+
+                <span>Thời gian cập nhật</span>
+
+                <b id="lastUpdate">
+                    --
+                </b>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ================= CẢNH BÁO ================= -->
+
+        <div class="panel alert-panel">
+
+            <div class="panel-title">
+
+                <h2>
+                    🚨 Cảnh báo
+                </h2>
+
+            </div>
+
+
+            <div
+                id="alertBox"
+                class="alert normal">
+
+                Chưa nhận dữ liệu từ ESP32.
+
+            </div>
+
+
+            <button
+                class="test"
+                onclick="sendCommand('STATUS',0)">
+
+                Kiểm tra trạng thái
+
+            </button>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script src="app.js"></script>
+
+</body>
+</html>
